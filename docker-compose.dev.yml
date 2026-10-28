@@ -1,0 +1,14 @@
+# Local development database only.   docker compose -f docker-compose.dev.yml up -d
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: numportal
+      POSTGRES_PASSWORD: numportal
+      POSTGRES_DB: numportal_live
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - numportal-dev-db:/var/lib/postgresql/data
+volumes:
+  numportal-dev-db:

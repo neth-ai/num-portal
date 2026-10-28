@@ -1,0 +1,699 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>NUM Portal prototype</title></head><body>
+<title>NUM Portal UI</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+Khmer:wght@400;600&display=swap">
+<style>
+/* Layout: ops-console. Left rail navigation per role, content column with summary strip on top, detail below. */
+:root{
+  --bg:#f3f5f7; --surface:#ffffff; --surface2:#eaeef2; --line:#d6dde4; --fg:#16202a; --muted:#5d6b79;
+  --accent:#0b6b64; --accent-fg:#ffffff; --accent-soft:#d9efec;
+  --ma:#b86e00; --ma-soft:#fbead0; --mb:#0b6b64; --mb-soft:#d9efec;
+  --ok:#17803d; --ok-soft:#dcf3e3; --warn:#a15c00; --warn-soft:#fbead0; --bad:#b42318; --bad-soft:#fde4e1; --run:#2457c5; --run-soft:#e0e9fb;
+  --font:'Hanken Grotesk','Noto Sans Khmer',system-ui,sans-serif; --mono:'JetBrains Mono',ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f1519; --surface:#172027; --surface2:#1e2a32; --line:#2c3a44; --fg:#e6edf2; --muted:#93a3b1;
+  --accent:#4fd1c5; --accent-fg:#06211e; --accent-soft:#16373a;
+  --ma:#f0b04a; --ma-soft:#3a2c12; --mb:#4fd1c5; --mb-soft:#16373a;
+  --ok:#5fd68a; --ok-soft:#163423; --warn:#f0b04a; --warn-soft:#3a2c12; --bad:#ff8a7d; --bad-soft:#3d1c19; --run:#7ea3ff; --run-soft:#1b2a4d; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1519; --surface:#172027; --surface2:#1e2a32; --line:#2c3a44; --fg:#e6edf2; --muted:#93a3b1;
+  --accent:#4fd1c5; --accent-fg:#06211e; --accent-soft:#16373a;
+  --ma:#f0b04a; --ma-soft:#3a2c12; --mb:#4fd1c5; --mb-soft:#16373a;
+  --ok:#5fd68a; --ok-soft:#163423; --warn:#f0b04a; --warn-soft:#3a2c12; --bad:#ff8a7d; --bad-soft:#3d1c19; --run:#7ea3ff; --run-soft:#1b2a4d; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:14px;line-height:1.5;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px 40px}
+button,input,select,textarea{font:inherit;color:inherit}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.top{display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px;padding-bottom:12px}
+.brand{display:flex;align-items:baseline;gap:8px;font-weight:700;font-size:18px;letter-spacing:-.01em}
+.brand small{font-weight:500;color:var(--muted);font-size:12px}
+.seg{display:inline-flex;background:var(--surface2);border:1px solid var(--line);border-radius:8px;padding:3px;gap:2px;flex-wrap:wrap}
+.seg button{border:0;background:transparent;padding:6px 12px;border-radius:6px;cursor:pointer;color:var(--muted);font-weight:500}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--fg);box-shadow:0 1px 2px rgba(0,0,0,.15)}
+.spacer{flex:1}
+.who{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px}
+.who b{color:var(--fg)}
+.theme{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 10px;cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.shell{display:grid;grid-template-columns:200px minmax(0,1fr);gap:20px;align-items:start}
+nav.rail{display:flex;flex-direction:column;gap:2px;position:sticky;top:12px}
+nav.rail h6{margin:10px 8px 4px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+nav.rail button{text-align:left;border:0;background:transparent;padding:8px 10px;border-radius:7px;cursor:pointer;color:var(--fg);display:flex;justify-content:space-between;gap:8px}
+nav.rail button:hover{background:var(--surface2)}
+nav.rail button[aria-current="page"]{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.badge{font-size:11px;background:var(--surface2);color:var(--muted);border-radius:99px;padding:0 7px;line-height:18px}
+main{min-width:0;display:flex;flex-direction:column;gap:16px}
+.ph{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:8px 16px}
+.ph h1{margin:0;font-size:22px;letter-spacing:-.015em}
+.ph p{margin:2px 0 0;color:var(--muted);max-width:60ch}
+.live{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ok);font-weight:600}
+.live::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--ok);animation:pulse 1.6s infinite}
+@keyframes pulse{50%{opacity:.3}}
+@media (prefers-reduced-motion:reduce){.live::before{animation:none}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;min-width:0}
+.panel h2{margin:0 0 10px;font-size:14px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.kpi span{display:block;color:var(--muted);font-size:12px}
+.kpi b{font-size:26px;letter-spacing:-.02em;font-family:var(--mono);font-weight:500}
+.kpi small{color:var(--muted);font-size:12px}
+.cols{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:16px}
+.pill{display:inline-block;font-size:11.5px;font-weight:600;padding:1px 8px;border-radius:99px;line-height:20px;white-space:nowrap}
+.p-ok{background:var(--ok-soft);color:var(--ok)}.p-bad{background:var(--bad-soft);color:var(--bad)}.p-run{background:var(--run-soft);color:var(--run)}.p-wait{background:var(--warn-soft);color:var(--warn)}.p-a{background:var(--ma-soft);color:var(--ma)}.p-b{background:var(--mb-soft);color:var(--mb)}.p-n{background:var(--surface2);color:var(--muted)}
+.steps{display:flex;gap:4px}
+.steps i{flex:1;height:6px;border-radius:3px;background:var(--surface2)}
+.steps i.ok{background:var(--ok)}.steps i.run{background:var(--run);animation:pulse 1s infinite}.steps i.bad{background:var(--bad)}
+.row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:4px 12px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.row:first-of-type{border-top:0}
+.row .t{font-weight:600;overflow-wrap:anywhere}.row .m{color:var(--muted);font-size:12.5px;grid-column:2}
+.row .steps{grid-column:2}
+.feed{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.feed li{display:grid;grid-template-columns:54px minmax(0,1fr);gap:8px;font-size:13px}
+.feed time{color:var(--muted);font-family:var(--mono);font-size:12px}
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:640px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+td.n,th.n{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:600}
+.btn:hover{background:var(--surface2)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.btn.pri:hover{filter:brightness(1.08)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn.sm{padding:4px 10px;font-size:12.5px}
+.btn.danger{color:var(--bad)}
+.tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+select,input[type=text],textarea{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%}
+select{width:auto}
+textarea{min-height:96px;resize:vertical}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.chip{border:1px solid var(--line);background:var(--surface2);border-radius:99px;padding:3px 10px;font-size:12.5px;cursor:pointer}
+.chip:hover{border-color:var(--accent)}
+.hint{color:var(--muted);font-size:12.5px}
+.bars{display:flex;flex-direction:column;gap:14px}
+.bar{display:grid;grid-template-columns:90px minmax(0,1fr);gap:4px 10px;align-items:center}
+.bar>span{font-size:12.5px;color:var(--muted)}
+.track{display:flex;flex-direction:column;gap:3px}
+.track div{height:14px;border-radius:3px;display:flex;align-items:center;padding-left:6px;font-size:11px;color:#fff;font-family:var(--mono);min-width:34px;white-space:nowrap}
+.track .a{background:var(--ma)}.track .b{background:var(--mb);color:var(--accent-fg)}
+.legend{display:flex;gap:14px;font-size:12.5px;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px}
+.tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.tcard{border:1px solid var(--line);border-radius:10px;padding:14px;background:var(--surface);display:flex;flex-direction:column;gap:8px;min-width:0}
+.tcard h3{margin:0;font-size:15px;display:flex;justify-content:space-between;gap:8px}
+.tcard a{color:var(--accent);font-family:var(--mono);font-size:12.5px;overflow-wrap:anywhere}
+.stepper{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.stepper div{border:1px solid var(--line);border-radius:8px;padding:8px;font-size:12.5px;background:var(--surface2);min-width:0}
+.stepper div b{display:block;font-size:12px}
+.stepper div.ok{background:var(--ok-soft);border-color:var(--ok)}.stepper div.run{background:var(--run-soft);border-color:var(--run)}
+.browser{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff;color:#16202a}
+.browser .bar2{background:var(--surface2);padding:6px 10px;font-family:var(--mono);font-size:12px;color:var(--muted);border-bottom:1px solid var(--line);overflow-wrap:anywhere}
+.cv{padding:20px;display:grid;gap:8px}
+.cv h3{margin:0;font-size:22px}.cv p{margin:0;color:#46525e}.cv span{display:inline-block;background:#e4efee;color:#0b6b64;border-radius:99px;padding:1px 9px;font-size:12px;margin-right:4px}
+.health{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+.health div{border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:flex;justify-content:space-between;gap:8px;align-items:center;background:var(--surface)}
+.health small{display:block;color:var(--muted);font-family:var(--mono)}
+.note{background:var(--warn-soft);color:var(--warn);border-radius:8px;padding:8px 12px;font-size:12.5px}
+.guard{display:grid;gap:6px;margin:0;padding-left:18px;color:var(--muted);font-size:13px}
+.quota{height:8px;background:var(--surface2);border-radius:4px;overflow:hidden}.quota i{display:block;height:100%;background:var(--accent)}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes grow{from{transform:scaleX(0)}}
+@keyframes pop{from{opacity:0;transform:scale(.3)}}
+@keyframes blink{50%{opacity:0}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes flash{from{background:var(--accent-soft);color:var(--accent)}}
+@keyframes dash{from{stroke-dashoffset:188.5}}
+#view.in>*{animation:rise .4s both}
+#view.in>*:nth-child(2){animation-delay:.06s}#view.in>*:nth-child(3){animation-delay:.12s}#view.in>*:nth-child(4){animation-delay:.18s}#view.in>*:nth-child(5){animation-delay:.24s}
+.flash{animation:flash 1.2s}
+.track div{transform-origin:left;animation:grow .9s cubic-bezier(.2,.8,.2,1) both}
+.split{display:grid;grid-template-columns:240px minmax(0,1fr);gap:16px;align-items:start}
+.pitem{display:flex;justify-content:space-between;gap:8px;align-items:center;width:100%;text-align:left;border:1px solid transparent;background:transparent;padding:8px 10px;border-radius:7px;cursor:pointer;overflow-wrap:anywhere}
+.pitem:hover{background:var(--surface2)}
+.pitem[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent)}
+#pl,.ftree{display:flex;flex-direction:column;gap:4px}
+.code,.term{background:#0d1419;color:#d5e1ea;border-radius:8px;font-family:var(--mono);font-size:12.5px;line-height:1.6;margin:0}
+.code{padding:12px 0;overflow-x:auto;counter-reset:l;min-height:140px}
+.code .l{display:block;padding-right:14px;white-space:pre}
+.code .l::before{counter-increment:l;content:counter(l);display:inline-block;width:38px;margin-right:12px;text-align:right;color:#5d6e7b}
+.code .l{animation:rise .25s both}
+.code i{font-style:normal}.code .c{color:#7c8c99}.code .s{color:#9fe3b6}.code .k{color:#7fb0ff}.code .n{color:#f0b04a}
+.code .add{background:rgba(95,214,138,.16)}.code .del{background:rgba(255,138,125,.16)}.code .hunk{color:#7c8c99}
+.term{padding:12px 14px;height:260px;overflow:auto}
+.tl{display:grid;grid-template-columns:48px minmax(0,1fr);gap:8px;white-space:pre-wrap;overflow-wrap:anywhere;animation:rise .25s both}
+.tl time{color:#7c8c99}.tl.er{color:#ff9d92}.tl.g{color:#9fe3b6}
+.tl.cur span::after{content:"\258D";margin-left:2px;animation:blink 1s infinite}
+.graph{display:grid;grid-template-columns:repeat(5,minmax(110px,1fr));gap:18px;overflow-x:auto;padding-bottom:4px}
+.gn{position:relative;border:1px solid var(--line);border-radius:8px;padding:10px;background:var(--surface2);display:flex;flex-direction:column;gap:2px;animation:rise .4s both;animation-delay:calc(var(--i)*.12s)}
+.gn:not(:last-child)::after{content:"";position:absolute;right:-19px;top:50%;width:18px;height:2px;background:var(--line)}
+.gn.ok{background:var(--ok-soft);border-color:var(--ok)}.gn.run{background:var(--run-soft);border-color:var(--run)}.gn.bad{background:var(--bad-soft);border-color:var(--bad)}.gn.gate{border-style:dashed}
+.gn.run b::after{content:"";display:inline-block;width:10px;height:10px;margin-left:6px;border:2px solid var(--run);border-right-color:transparent;border-radius:50%;animation:spin .7s linear infinite}
+.bubble{padding:10px 14px;border-radius:12px;max-width:70ch;margin:6px 0}
+.bubble.me{background:var(--accent-soft);margin-left:auto;width:fit-content}
+.bubble.ai{background:var(--surface2)}
+.dots i{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--muted);margin-right:4px;animation:blink 1s infinite}
+.dots i:nth-child(2){animation-delay:.2s}.dots i:nth-child(3){animation-delay:.4s}
+.checks{list-style:none;padding:0;margin:12px 0 0;display:grid;gap:6px}
+.checks li{animation:rise .3s both}
+.checks li::before{content:"\2713";color:var(--ok);font-weight:700;margin-right:8px}
+.chk{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--line);cursor:pointer}
+.chk input{width:18px;height:18px;accent-color:var(--accent)}
+.chk code{font-size:12px}
+.timer{font-family:var(--mono);font-size:40px;letter-spacing:-.02em;line-height:1.1}
+.sw{width:40px;height:22px;border-radius:11px;border:1px solid var(--line);background:var(--surface2);position:relative;cursor:pointer;padding:0;flex:none}
+.sw::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--muted);transition:transform .2s,background .2s}
+.sw[aria-checked="true"]{background:var(--accent-soft);border-color:var(--accent)}
+.sw[aria-checked="true"]::after{transform:translateX(18px);background:var(--accent)}
+.set{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.set:first-of-type{border-top:0}
+.login{max-width:380px;margin:20px auto;display:grid;gap:10px;width:100%}
+.spin{display:inline-block;width:12px;height:12px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin .7s linear infinite;vertical-align:-1px;margin-right:6px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:8px 16px;border-radius:8px;z-index:20;animation:rise .3s both}
+.rl{transform-box:fill-box;transform-origin:left;animation:grow .9s cubic-bezier(.2,.8,.2,1) both}
+.pt{transform-box:fill-box;transform-origin:center;animation:pop .5s both}
+.g-line{stroke:var(--line)}.g-lbl{fill:var(--muted);font-size:11px}.g-row{fill:var(--fg);font-size:12px;font-weight:600}
+.ln-a{stroke:var(--ma)}.ln-b{stroke:var(--mb)}.dot-a{fill:var(--ma)}.dot-b{fill:var(--mb)}
+.gb{stroke:var(--surface2)}.gf-a{stroke:var(--ma)}.gf-b{stroke:var(--mb)}
+.gauge .fg{stroke-dasharray:188.5;animation:dash 1.2s ease-out both}
+.gt{fill:var(--fg);font-family:var(--mono);font-size:22px}
+.dora{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.dora div{border:1px solid var(--line);border-radius:8px;padding:12px}
+.dora b{font-family:var(--mono);font-size:18px;font-weight:500;display:block}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;animation-delay:0s!important}}
+@media (max-width:860px){
+  .split{grid-template-columns:1fr}
+  .shell{grid-template-columns:1fr}
+  nav.rail{flex-direction:row;overflow-x:auto;position:static;padding-bottom:4px}
+  nav.rail h6{display:none}nav.rail button{white-space:nowrap;border:1px solid var(--line)}
+  .cols{grid-template-columns:1fr}
+  .stepper{grid-template-columns:1fr 1fr}
+}
+</style>
+<style>
+.chip[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:600}
+.stepper div.bad{background:var(--bad-soft);border-color:var(--bad)}
+.stk{display:flex;height:16px;border-radius:4px;overflow:hidden;background:var(--surface2)}
+.stk i{display:block;height:100%;transform-origin:left;animation:grow .9s cubic-bezier(.2,.8,.2,1) both}
+.k-wait{background:var(--warn)}.k-hand{background:var(--ma)}.k-pipe{background:var(--mb)}.k-appr{background:var(--muted)}
+.bar>span{line-height:1.3}
+.badge.hot{background:var(--warn-soft);color:var(--warn);font-weight:600}
+label.blk{display:block;margin-top:10px}
+.cols2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start}
+.vs{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px}
+.vs li{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:8px;align-items:center;padding:6px 8px;border:1px solid var(--line);border-radius:7px;background:var(--surface2);font-size:13px}
+.vs li.ok{background:var(--ok-soft);border-color:var(--ok)}
+.vs li.run{background:var(--run-soft);border-color:var(--run)}
+.vs li.bad{background:var(--bad-soft);border-color:var(--bad)}
+.vs li.run>span:nth-child(2)::after{content:"";display:inline-block;width:9px;height:9px;margin-left:8px;border:2px solid var(--run);border-right-color:transparent;border-radius:50%;animation:spin .7s linear infinite}
+.own{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.mini{display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:8px;margin-top:12px}
+.mini div{border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.mini b{font-family:var(--mono);font-size:17px;font-weight:500;display:block}
+.mini span{font-size:12px;color:var(--muted)}
+#view.soft>*{animation:none!important}
+#view.soft .track div,#view.soft .stk i,#view.soft .l,#view.soft .tl,#view.soft .gn{animation:none}
+@media (max-width:860px){.cols2{grid-template-columns:1fr}}
+</style>
+
+<div class="top">
+  <div class="brand">NUM Portal <small>draft with example data</small></div>
+  <div class="spacer"></div>
+  <button class="theme" id="theme" type="button" aria-label="Switch light or dark theme">Theme</button>
+</div>
+<div class="shell">
+  <nav class="rail" id="rail" aria-label="Pages"></nav>
+  <main id="view"></main>
+</div>
+
+<script>
+const $=s=>document.querySelector(s);
+const T={t:[],i:[]};
+function clearTimers(){T.t.forEach(clearTimeout);T.i.forEach(clearInterval);T.t=[];T.i=[]}
+const later=(fn,ms)=>{T.t.push(setTimeout(fn,ms))};
+const sim=(fn,ms)=>setTimeout(fn,ms);
+const esc=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const fmt=s=>String(Math.floor(s/60)).padStart(2,'0')+':'+String(Math.floor(s%60)).padStart(2,'0');
+const hms=t=>new Date(t).toTimeString().slice(0,8);
+const mean=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:0;
+const pad=n=>String(n).padStart(2,'0');
+function hl(src){
+ return esc(src).replace(/(#[^\n]*|\/\/[^\n]*)|("(?:[^"\\\n]|\\.)*"|'[^'\n]*')|\b(stages|stage|script|rules|needs|when|if|then|else|fi|for|do|done|in|echo|exit|set|sleep|const|export|function|throw|new|return|FROM|RUN|COPY|WORKDIR|EXPOSE|CMD|AS|true|false|null)\b|(\b\d+\b)/g,
+  (m,c,s,k,n)=>c?`<i class="c">${c}</i>`:s?`<i class="s">${s}</i>`:k?`<i class="k">${k}</i>`:`<i class="n">${n}</i>`);
+}
+function showCode(el,lines,animate){
+ if(!el)return;
+ const row=l=>`<span class="l">${hl(l)||' '}</span>`;
+ if(!animate){el.innerHTML=lines.map(row).join('');return}
+ el.innerHTML='';
+ lines.forEach((l,i)=>later(()=>{el.insertAdjacentHTML('beforeend',row(l))},i*45));
+}
+function toast(m){document.querySelectorAll('.toast').forEach(x=>x.remove());const d=document.createElement('div');d.className='toast';d.setAttribute('role','status');d.textContent=m;document.body.appendChild(d);setTimeout(()=>d.remove(),2200)}
+
+/* ---------- data ---------- */
+const NAV=[['Release',[['sbs','Home'],['release','Change code'],['result','Result on the website']]],['Method A',[['handoff','Handoff form'],['queue','Ops queue']]],['Analysis',[['compare','Compare A vs B'],['wait','Handoff analysis'],['stats','Statistics']]],['Technical',[['pipeline','Pipelines and logs'],['system','System health']]],['Project',[['about','About the study']]]];
+const PAGES=NAV.flatMap(g=>g[1].map(p=>p[0]));
+const TITLES={
+ sbs:['Manual deployment vs DevOps','Manual on the left, DevOps on the right, with the data we use in the thesis.'],
+ release:['Change code','Edit the website code once. One commit goes to both methods.'],
+ result:['Result on the website','What each method put online after the same change.'],
+ test:['Test run, Method B','Push a test change and watch the pipeline. Used to check the setup before the real runs.'],
+ handoff:['Handoff, Method A','The Dev team asks the Operations team to deploy by hand.'],
+ myruns:['My runs','Every test run you started.'],
+ queue:['Ops queue, Method A','Receive a handoff request, deploy by hand and tick each step.'],
+ overview:['Overview','Runs of both methods, updated as they happen.'],
+ runs:['Runs','All runs of both methods. Import the manual runs and export for analysis.'],
+ compare:['Compare A vs B','Figures for Chapter V. Example numbers for layout only.'],
+ wait:['Handoff analysis','Where the time goes: waiting, hands-on work and the pipeline.'],
+ stats:['Statistics','Test and decision for each hypothesis.'],
+ pipeline:['Pipelines and logs','Follow each stage and read the job log as it streams.'],
+ code:['Source code','The files that run the deployment. All of it is open source.'],
+ settings:['Settings','The two participants and the rules of the experiment.'],
+ system:['System health','Services on the study server.'],
+ about:['About the study','What is compared and what is recorded.'],
+ login:['Sign in','The page every user sees first.']
+};
+const SC=[['S1','First deployment'],['S2','Feature update'],['S3','Faulty release'],['S4','Environment mismatch'],['S5','Configuration change']];
+const SCNOTE={S1:'Deploy to an empty environment.',S2:'A small new section. Expected to pass.',S3:'Contains a deliberate fault. The health check fails and the pipeline rolls back by itself.',S4:'Needs a newer Node.js than the server has. The Docker image carries its own version, so it passes.',S5:'Needs a new setting. The setting is stored as a protected variable.'};
+const BSTEPS=[['Push to GitLab',2],['Guard',6],['Test',21],['Build',48],['Deploy staging',24],['Deploy production',12],['Health check',5]];
+const SOP=[['Connect to the server','ssh deploy@server'],['Pull the new code','git pull origin main'],['Install packages','npm ci'],['Build the application','npm run build'],['Update the settings','nano .env'],['Run database changes','node scripts/migrate.mjs'],['Restart the application','pm2 restart manual-app'],['Check the health address','curl -fs :3001/api/health']];
+const RUNS=[
+ {id:'S1-01',sc:'S1',m:'A',who:'Dev-1/Ops-1',dep:412,wait:130,steps:31,ho:1,res:'Success',src:'manual-runs.csv'},
+ {id:'S1-01',sc:'S1',m:'B',who:'Dev-1/Ops-1',dep:138,wait:0,steps:1,ho:0,res:'Success',src:'GitLab'},
+ {id:'S2-03',sc:'S2',m:'A',who:'Dev-2/Ops-2',dep:226,wait:85,steps:14,ho:1,res:'Success',src:'manual-runs.csv'},
+ {id:'S2-03',sc:'S2',m:'B',who:'Dev-2/Ops-2',dep:96,wait:0,steps:1,ho:0,res:'Success',src:'GitLab'},
+ {id:'S3-05',sc:'S3',m:'A',who:'Dev-1/Ops-1',dep:540,wait:160,steps:19,ho:2,res:'Failed',src:'manual-runs.csv'},
+ {id:'S3-05',sc:'S3',m:'B',who:'Dev-1/Ops-1',dep:71,wait:0,steps:1,ho:0,res:'Rolled back',src:'rollback log'},
+ {id:'S4-02',sc:'S4',m:'A',who:'Dev-2/Ops-2',dep:388,wait:110,steps:22,ho:2,res:'Failed',src:'manual-runs.csv'},
+ {id:'S4-02',sc:'S4',m:'B',who:'Dev-2/Ops-2',dep:124,wait:0,steps:1,ho:0,res:'Success',src:'GitLab'},
+ {id:'S5-07',sc:'S5',m:'A',who:'Dev-1/Ops-1',dep:264,wait:95,steps:17,ho:1,res:'Success',src:'manual-runs.csv'},
+ {id:'S5-07',sc:'S5',m:'B',who:'Dev-1/Ops-1',dep:103,wait:0,steps:1,ho:0,res:'Success',src:'GitLab'}
+];
+const PIPES=[
+ {id:412,who:'Dev-2',msg:'Add a contact section [S2-12]',st:['ok','ok','run','',''],s:'running',t:'0:41'},
+ {id:411,who:'Dev-1',msg:'Add opening hours section [S2-11]',st:['ok','ok','ok','ok','ok'],s:'success',t:'1:52'},
+ {id:410,who:'Dev-2',msg:'Change the footer text',st:['ok','ok','ok','ok','ok'],s:'success',t:'1:38'},
+ {id:409,who:'Dev-1',msg:'Faulty release [S3-05]',st:['ok','bad','','',''],s:'failed',t:'0:27'},
+ {id:408,who:'Dev-2',msg:'Update the colours',st:['ok','ok','ok','ok','ok'],s:'success',t:'1:44'}
+];
+const FEED=[['10:42','Dev-2 pushed a change'],['10:41','Pipeline #411 deployed to production'],['10:39','Ops-1 started handoff #3'],['10:36','Pipeline #409 failed at test'],['10:31','Dev-1 sent handoff #2 to Operations'],['10:28','Pipeline #408 deployed to production']];
+const CODE={
+'.gitlab-ci.yml':['stages: [test, build, staging, production]','','test:','  stage: test','  script:','    - npm ci','    - npm run lint','    - npm test','','build:','  stage: build','  script:','    - docker build -t sme-app:$CI_COMMIT_SHORT_SHA apps/sme-app','','deploy_staging:','  stage: staging','  script:','    - bash ./scripts/deploy.sh staging $CI_COMMIT_SHORT_SHA','','deploy_production:','  stage: production','  needs: [deploy_staging]','  script:','    - bash ./scripts/deploy.sh production $CI_COMMIT_SHORT_SHA'],
+'scripts/deploy.sh':['#!/usr/bin/env bash','set -euo pipefail','ENV="$1"; TAG="$2"','echo "deploying $TAG to $ENV"','docker run -d --name "sme-$ENV-new" --memory 512m --cpus 1 "sme-app:$TAG"','node scripts/migrate.mjs','for i in $(seq 1 30); do','  if curl -fs "http://127.0.0.1:$PORT/api/health"; then','    echo "healthy"; exit 0','  fi','  sleep 2','done','# health check failed, go back to the last good version','bash ./scripts/rollback.sh "$ENV"','exit 1'],
+'scripts/rollback.sh':['#!/usr/bin/env bash','set -euo pipefail','ENV="$1"','echo "rolling back $ENV"','PREV=$(cat /opt/sme/state/$ENV.previous)','docker rm -f "sme-$ENV" || true','docker run -d --name "sme-$ENV" "sme-app:$PREV"','curl -fs "http://127.0.0.1:$PORT/api/health"','echo "back on $PREV"'],
+'manual-runs.csv':['run,scenario,dev,ops,t_handoff,t_ops_start,t_live,steps,handoffs,result','S2-03,S2,Dev-2,Ops-2,10:02:10,10:03:35,10:07:21,14,1,success','S3-05,S3,Dev-1,Ops-1,10:40:02,10:42:42,10:51:42,19,2,failed'],
+'apps/sme-app/Dockerfile':['FROM node:20-alpine AS build','WORKDIR /app','COPY package*.json ./','RUN npm ci','COPY . .','RUN npm run build','','FROM node:20-alpine','WORKDIR /app','COPY --from=build /app/.next/standalone ./','EXPOSE 3000','CMD ["node", "server.js"]']
+};
+
+/* ---------- state ---------- */
+let role='all',page='sbs',filter='All',mfilter='All';
+const S={
+ bt:{sc:'S2',msg:'Add opening hours section [S2-11]',st:null,dur:[],running:false,gate:false,rb:false,res:null,wait:0,gateAt:0},
+ ho:{sc:'S2',ver:'v1.4.0',note:'Add opening hours section',set:'none',db:'none'},
+ list:[],hid:0,rel:null,sel:null,sel2:411,file:'.gitlab-ci.yml',
+ set:{auto:true,roll:true,mirror:true,users:true}
+};
+
+/* ---------- small pieces ---------- */
+const pill=s=>({Success:'p-ok',success:'p-ok',Failed:'p-bad',failed:'p-bad',running:'p-run','Rolled back':'p-wait',waiting:'p-wait',idle:'p-n','rolling back':'p-bad',deploying:'p-run',live:'p-ok',A:'p-a',B:'p-b'}[s]||'p-n');
+const stepsBar=a=>`<div class="steps" aria-hidden="true">${a.map(x=>`<i class="${x}"></i>`).join('')}</div>`;
+const kpi=(l,v,s)=>`<div class="kpi"><span>${l}</span><b ${/^\d+$/.test(String(v))?`data-count="${v}"`:''}>${v}</b><br><small>${s}</small></div>`;
+function pipeList(){return PIPES.map(p=>`<div class="row"><span class="mono hint">#${p.id}</span><span class="t">${p.msg}</span><span class="pill ${pill(p.s)}">${p.s}</span><span class="m">${p.who} · ${p.t}</span>${stepsBar(p.st)}</div>`).join('')}
+function agg(m){const r=RUNS.filter(x=>x.m===m);return{n:r.length,dep:mean(r.map(x=>x.dep)),lead:mean(r.map(x=>x.dep+x.wait)),wait:mean(r.map(x=>x.wait)),ho:mean(r.map(x=>x.ho)),steps:mean(r.map(x=>x.steps)),fail:r.filter(x=>x.res!=='Success').length}}
+const runsTable=(rows,extra)=>`<div class="tbl"><table><thead><tr><th>Run</th><th>Scenario</th><th>Method</th><th>Dev / Ops</th><th class="n">Deploy (s)</th><th class="n">Wait (s)</th><th class="n">Lead (s)</th><th class="n">Steps</th><th class="n">Handoffs</th><th>Result</th><th>Source</th></tr></thead><tbody>${rows.map(r=>`<tr><td class="mono">${r.id}</td><td>${r.sc}</td><td><span class="pill ${pill(r.m)}">${r.m}</span></td><td>${r.who}</td><td class="n">${r.dep}</td><td class="n">${r.wait}</td><td class="n">${r.dep+r.wait}</td><td class="n">${r.steps}</td><td class="n">${r.ho}</td><td><span class="pill ${pill(r.res)}">${r.res}</span></td><td class="hint">${r.src}</td></tr>`).join('')}</tbody></table></div>`;
+const resultCard=r=>`<div class="dora" style="margin-top:14px"><div><span class="hint">Result</span><b><span class="pill ${pill(r.res)}">${r.res}</span></b></div><div><span class="hint">Pipeline time</span><b>${r.pipe} s</b></div><div><span class="hint">Lead time</span><b>${r.lead} s</b></div><div><span class="hint">Manual steps</span><b>1</b></div>${r.rec?`<div><span class="hint">Recovery time</span><b>${r.rec} s</b></div>`:''}</div>`;
+function handoffRow(x){
+ const info=x.status==='waiting'?'waiting since '+hms(x.sentAt):x.status==='failed'?'Ops reported: health check failed (try '+x.tries+')':x.status==='live'?'live after '+x.total+' s of hands-on work':'Ops is deploying now';
+ const btn=x.status==='failed'?` <button class="btn sm" type="button" data-act="hfix" data-id="${x.id}">Fix and resend</button>`:'';
+ return `<div class="row"><span class="mono hint">#${x.id}</span><span class="t">${x.sc} ${x.ver}</span><span class="pill ${pill(x.status)}">${x.status}</span><span class="m">${x.note} · ${info}${btn}</span></div>`;
+}
+function deployPanel(x){
+ const dep=x.status==='deploying';
+ return `<section class="panel"><h2>Request #${x.id} <span class="pill ${pill(x.status)}">${x.status}</span></h2>
+ <p class="hint" style="margin:0 0 10px">From Dev: ${x.note}. New settings: ${x.set}. Database steps: ${x.db}. Sent at ${hms(x.sentAt)}.</p>
+ <div class="tools" style="justify-content:space-between"><div><span class="hint">Hands-on time</span><div class="timer" id="mtime">${dep?fmt((Date.now()-x.startAt)/1000):'00:00'}</div></div><div><span class="hint">Manual steps</span><div class="timer">${x.done.length}<span class="hint" style="font-size:16px"> / ${SOP.length}</span></div></div></div>
+ ${dep?'':`<div class="tools" style="margin:12px 0"><button class="btn pri" type="button" data-act="ostart" data-id="${x.id}">Start deploy</button><span class="hint">Dev-1 is waiting for you. The handoff wait ends when you start.</span></div>`}
+ <div>${SOP.map((s,i)=>`<label class="chk"><input type="checkbox" data-act="ostep" data-i="${i}" data-id="${x.id}" ${x.done.includes(i)?'checked':''} ${dep?'':'disabled'}><span>${s[0]}<br><code class="mono hint">${s[1]}</code></span><span class="mono hint">${x.times[i]||''}</span></label>`).join('')}</div>
+ ${dep?`<div class="tools" style="margin-top:12px"><button class="btn pri" type="button" data-act="ook" data-id="${x.id}" ${x.done.length<SOP.length?'disabled':''}>Health OK: go live</button><button class="btn danger" type="button" data-act="ofail" data-id="${x.id}" ${x.done.length<SOP.length?'disabled':''}>Health failed: report to Dev</button></div>`:''}</section>`;
+}
+
+function openH(){return S.list.filter(h=>h.status==='waiting'||h.status==='deploying').slice(-1)[0]}
+function waitBanner(){
+ const x=openH();if(!x)return '';
+ const dep=x.status==='deploying';
+ return `<section class="panel" style="border-color:var(--warn)"><h2>${dep?'Ops-1 is deploying your version':'Waiting for Ops-1 to continue the deployment'} <span class="pill ${pill(x.status)}">${x.status}</span></h2>
+ <div class="tools" style="justify-content:space-between"><div><span class="hint">${dep?'Hands-on time so far':'Waiting time'}</span><div class="timer" id="wtime">${fmt((Date.now()-(dep?x.startAt:x.sentAt))/1000)}</div></div><div><span class="hint">Steps done by Ops</span><div class="timer">${x.done.length}<span class="hint" style="font-size:16px"> / ${SOP.length}</span></div></div></div>
+ <p class="hint" style="margin:8px 0 0">${dep?'Nothing moves until Operations reports the result. If the health check fails, the request comes back to you.':'Request #'+x.id+' is in the queue. Method A cannot move until your friend continues the deployment.'}</p></section>`;
+}
+
+/* ---------- release data and helpers ---------- */
+const canRel=()=>true;
+const BASE=['{','  "title": "Sokha Cafe",','  "sections": [','    { "type": "menu", "items": ["Coffee", "Tea", "Cake"] }','  ]','}'];
+const withSection=(line)=>['{','  "title": "Sokha Cafe",','  "sections": [','    { "type": "menu", "items": ["Coffee", "Tea", "Cake"] },',line,'  ]','}'];
+const PRESET={
+ S1:BASE.slice(),
+ S2:withSection('    { "type": "hours", "text": "Open 7am to 9pm every day" }'),
+ S3:withSection('    { "type": "offer", "text": "2 for 1 coffee on Fridays" '),
+ S4:withSection('    { "type": "order", "button": "Order now", "node": ">=22" }'),
+ S5:withSection('    { "type": "delivery", "fee": "$DELIVERY_FEE" }')
+};
+const MSGS={S1:'First deployment of the cafe site',S2:'Add opening hours section',S3:'Add special offer (faulty release)',S4:'Add online order button',S5:'Add delivery fee setting'};
+const FEAT={S1:['Site is online','The cafe website is live for the first time'],S2:['Opening hours','Open 7am to 9pm every day'],S3:['Special offer','2 for 1 coffee on Fridays'],S4:['Order online','Button: Order now'],S5:['Delivery fee','$1.50 within the city']};
+const NOM=[20,12,45,60,25,18,15,10];
+S.rel={sc:'S2',code:PRESET.S2.join('\n'),msg:MSGS.S2+' [S2-'+String(RUNS.length+1).padStart(2,'0')+']',committed:false,sha:'',t:0,aId:0,ver:'',saved:[]};
+function diffLines(a,b){const n=a.length,m=b.length,L=Array.from({length:n+1},()=>Array(m+1).fill(0));
+ for(let i=n-1;i>=0;i--)for(let j=m-1;j>=0;j--)L[i][j]=a[i]===b[j]?L[i+1][j+1]+1:Math.max(L[i+1][j],L[i][j+1]);
+ const out=[];let i=0,j=0;
+ while(i<n&&j<m){if(a[i]===b[j]){out.push(['',a[i]]);i++;j++}else if(L[i+1][j]>=L[i][j+1]){out.push(['-',a[i]]);i++}else{out.push(['+',b[j]]);j++}}
+ while(i<n)out.push(['-',a[i++]]);while(j<m)out.push(['+',b[j++]]);return out}
+const diffHTML=(a,b)=>diffLines(a,b).map(d=>`<span class="l ${d[0]==='+'?'add':d[0]==='-'?'del':''}">${hl((d[0]||' ')+' '+d[1])}</span>`).join('');
+function site(sc,on,none){
+ if(none)return `<div class="cv"><p>Nothing is online yet.</p></div>`;
+ return `<div class="cv"><h3>Sokha Cafe</h3><p>Fresh coffee in Phnom Penh</p><div><span>Coffee</span><span>Tea</span><span>Cake</span></div>${on?`<div style="border:2px solid #0b6b64;background:#e4efee;border-radius:8px;padding:8px 12px;margin-top:6px"><b>${FEAT[sc][0]}</b><br>${FEAT[sc][1]}</div>`:''}</div>`;
+}
+const vsList=a=>`<ul class="vs">${a.map(r=>`<li class="${r[2]}"><span class="own">${r[0]}</span><span>${r[1]}</span><span class="mono hint">${r[3]||''}</span></li>`).join('')}</ul>`;
+const mini=a=>`<div class="mini">${a.map(r=>`<div><span>${r[0]}</span><b>${r[1]}</b></div>`).join('')}</div>`;
+function colA(x){
+ const now=Date.now();
+ const wait=x?(x.status==='waiting'?Math.round((now-x.sentAt)/1000):x.wait):0;
+ const hands=x?(x.status==='deploying'?(x.demo?NOM.slice(0,x.done.length).reduce((p,q)=>p+q,0):Math.round((now-x.startAt)/1000)):x.total):0;
+ const first=x?SOP.findIndex((q,i)=>!x.done.includes(i)):-1;
+ const st=[['Dev','Write and test code',x?'ok':'',''],['Dev','Send handoff request',x?'ok':'',''],['Dev','Wait for Ops to continue',!x?'':x.status==='waiting'?'run':'ok',x?wait+' s':'']];
+ SOP.forEach((q,i)=>st.push(['Ops',q[0],!x?'':x.done.includes(i)?'ok':(x.status==='deploying'&&i===first)?'run':'',x&&x.times[i]||'']));
+ st.push(['Ops','Live on the website',!x?'':x.status==='live'?'ok':x.status==='failed'?'bad':'','']);
+ if(x&&x.status==='failed')st.push(['Dev','Fix and resend (back to handoff)','run','']);
+ const stt=!x?'idle':x.status;
+ let foot='';
+ if(!x)foot=canRel()?'<button class="btn pri" type="button" data-page="release">Change code and deploy</button>':'';
+ else if(x.status==='waiting')foot='<button class="btn pri" type="button" data-page="queue">Open the Ops queue</button><button class="btn" type="button" data-act="opsauto" data-id="'+x.id+'">Demo: let Ops continue (simulated times)</button>';
+ else if(x.status==='failed'&&canRel())foot='<button class="btn pri" type="button" data-act="hfix" data-id="'+x.id+'">Fix and resend</button>';
+ return `<section class="panel"><h2>Method A: Manual <span class="pill ${pill(stt)}">${stt}</span></h2><p class="hint" style="margin:0 0 10px">Dev team and Operations team hand work to each other.</p>${vsList(st)}${mini([['Handoff wait',wait+' s'],['Hands-on',hands+' s'],['Manual steps',x?x.done.length:0],['Handoffs',x?x.tries:0]])}${foot?`<div class="tools" style="margin-top:12px">${foot}</div>`:''}</section>`;
+}
+function colB(){
+ const bt=S.bt,st=bt.st;
+ const rows=BSTEPS.map((q,i)=>[i===0?'Dev':'Pipe',q[0],st&&st[i]?st[i]:'',st&&st[i]==='ok'?q[1]+' s':'']);
+ if(bt.rb)rows.push(['Pipe','Automatic rollback',bt.running?'run':'ok',bt.running?'':'6 s']);
+ const pipe=st?bt.dur.reduce((p,q)=>p+q,0):0;
+ const stt=!st?'idle':bt.running?(bt.rb?'rolling back':'running'):bt.res.res;
+ const foot=!st&&canRel()?'<button class="btn pri" type="button" data-page="release">Change code and deploy</button>':'';
+ return `<section class="panel"><h2>Method B: DevOps <span class="pill ${pill(stt)}">${stt}</span></h2><p class="hint" style="margin:0 0 10px">One shared team. The pipeline does the work, with no approval.</p>${vsList(rows)}${mini([['Handoff wait','0 s'],['Pipeline time',pipe+' s'],['Manual steps',st?1:0],['Handoffs',0]])}${foot?`<div class="tools" style="margin-top:12px">${foot}</div>`:''}</section>`;
+}
+function opsAuto(id){
+ const x=S.list.find(h=>h.id===id);if(!x||x.status!=='waiting')return;
+ x.demo=true;x.status='deploying';x.startAt=Date.now();x.wait=Math.round((x.startAt-x.sentAt)/1000)+85;refresh();
+ let cum=0;
+ SOP.forEach((q,i)=>sim(()=>{cum+=NOM[i];x.done.push(i);x.times[i]=fmt(cum);refresh()},(i+1)*650));
+ sim(()=>{
+  x.total=NOM.reduce((p,q)=>p+q,0)+(x.tries>1?40:0);
+  const bad=(x.sc==='S3'||x.sc==='S4')&&x.tries===1;
+  x.status=bad?'failed':'live';
+  RUNS.push({id:x.sc+'-'+pad(RUNS.length+1),sc:x.sc,m:'A',who:'Dev-1/Ops-1',dep:x.total,wait:x.wait,steps:x.done.length,ho:x.tries,res:bad?'Failed':'Success',src:'handoff form'});
+  toast(bad?'Ops reported: health check failed':'Live on Method A');refresh();
+ },(SOP.length+1)*650+300);
+}
+
+/* ---------- pages ---------- */
+const V={
+sbs(){
+ const a=agg('A'),b=agg('B'),red=Math.round((1-b.dep/a.dep)*100);
+ const sm=(sc,m)=>Math.round(mean(RUNS.filter(z=>z.sc===sc&&z.m===m).map(z=>z.dep)));
+ const mx=Math.max(1,...SC.map(q=>Math.max(sm(q[0],'A'),sm(q[0],'B'))));
+ const stA=[['Dev','Write and test code','',''],['Dev','Send handoff request','',''],['Dev','Wait for Ops to continue','','']].concat(SOP.map(q=>['Ops',q[0],'',''])).concat([['Ops','Live on the website','','']]);
+ const stB=BSTEPS.map((q,i)=>[i===0?'Dev':'Pipe',q[0],'','']);
+ return `<div class="kpis">${kpi('Runs recorded',RUNS.length,'of 100 planned')}${kpi('Mean time A',Math.round(a.dep)+' s','Method A, hands-on')}${kpi('Mean time B',Math.round(b.dep)+' s','Method B, pipeline')}${kpi('Time saved',red+'%','B compared with A')}${kpi('Failed runs',a.fail+' to '+b.fail,'Method A to B')}${kpi('Handoffs per release',a.ho.toFixed(1)+' to '+b.ho.toFixed(1),'Method A to B')}</div>
+ <div class="cols2"><section class="panel"><h2>Method A: Manual process</h2><p class="hint" style="margin:0 0 10px">Dev team and Operations team hand work to each other.</p>${vsList(stA)}${mini([['Mean handoff wait',Math.round(a.wait)+' s'],['Mean hands-on',Math.round(a.dep)+' s'],['Failed runs',a.fail]])}</section>
+ <section class="panel"><h2>Method B: DevOps process</h2><p class="hint" style="margin:0 0 10px">One shared team. The pipeline does the work, with no approval.</p>${vsList(stB)}${mini([['Mean handoff wait','0 s'],['Mean pipeline',Math.round(b.dep)+' s'],['Failed runs',b.fail]])}</section></div>
+ <section class="panel"><h2>Overview data for the thesis <span class="hint">mean deployment time per scenario (s)</span></h2><div class="legend"><span><i style="background:var(--ma)"></i>Method A manual</span><span><i style="background:var(--mb)"></i>Method B DevOps</span></div>
+ <div class="bars" style="margin-top:12px">${SC.map(q=>`<div class="bar"><span>${q[0]}</span><div class="track"><div class="a" style="width:${sm(q[0],'A')/mx*100}%">${sm(q[0],'A')}</div><div class="b" style="width:${sm(q[0],'B')/mx*100}%">${sm(q[0],'B')}</div></div></div>`).join('')}</div>
+ <p class="hint" style="margin:10px 0 0">Includes example rows until the real runs are recorded.</p></section>
+ <section class="panel"><h2>Latest runs</h2>${runsTable(RUNS.slice(-4).reverse())}</section>`},
+release(){
+ const r=S.rel,busy=S.bt.running||!!openH();
+ return `<div class="cols"><section class="panel"><h2>Change the code <span class="hint mono">apps/sme-app/src/content/page.json</span></h2>
+ <label class="hint">Kind of change</label><div class="chips">${SC.map(q=>`<button class="chip" type="button" data-act="rsc" data-sc="${q[0]}" aria-pressed="${q[0]===r.sc}" ${busy?'disabled':''}>${q[0]} ${q[1]}</button>`).join('')}</div>
+ <p class="hint" style="margin:0 0 6px">${SCNOTE[r.sc]}</p>
+ <label class="hint blk" for="codeedit">Edit the file</label>
+ <textarea id="codeedit" class="mono" style="min-height:200px;white-space:pre" ${busy?'disabled':''}>${esc(r.code)}</textarea>
+ <label class="hint blk" for="cmsg2">Commit message</label><input type="text" id="cmsg2" value="${esc(r.msg)}" ${busy?'disabled':''}>
+ <div class="tools" style="margin-top:12px"><button class="btn pri" type="button" data-act="rcommit" ${busy?'disabled':''}>${busy?'A release is running':'Commit and deploy to both'}</button><span class="hint">One commit starts Method B and sends the same change to Method A.</span></div></section>
+ <section class="panel"><h2>Changed lines</h2><pre class="code" id="rdiff">${diffHTML(BASE,r.code.split('\n'))}</pre>
+ <p class="hint" style="margin:12px 0 4px">What happens after the commit</p><ul class="guard"><li><b>Method B:</b> the pipeline builds and deploys by itself.</li><li><b>Method A:</b> a handoff request goes to Operations. The Dev team waits until Ops continues the deployment.</li></ul>
+ <div class="tools" style="margin-top:12px"><button class="btn" type="button" data-page="result">See the website</button></div></section></div>
+ ${r.committed?`<div class="note" style="background:var(--accent-soft);color:var(--accent)">Commit <b class="mono">${r.sha}</b> · ${r.msg} · sent to both methods at ${hms(r.t)}</div><div class="cols2">${colA(S.list.find(h=>h.id===r.aId)||null)}${colB()}</div>`:''}`},
+result(){
+ const r=S.rel,x=S.list.find(h=>h.id===r.aId),bt=S.bt;
+ if(!r.committed)return `<section class="panel"><h2>No release yet</h2><p class="hint" style="margin:0 0 10px">Change the code and deploy to both methods. The website of each method will appear here.</p>${canRel()?'<button class="btn pri" type="button" data-page="release">Change code and deploy</button>':''}</section>`;
+ if(!x||x.status!=='live')return `<section class="panel"><h2>Method A is not finished yet <span class="pill ${x&&x.status==='failed'?'p-bad':'p-run'}">${x&&x.status==='failed'?'failed':x&&x.status==='deploying'?'deploying':'waiting'}</span></h2><p class="hint" style="margin:0 0 10px">${x&&x.status==='failed'?'Ops reported a failed health check. Fix the code and resend. The result appears after Method A is live.':'The result of both methods is shown after the Operations team has put Method A online.'}</p><div class="tools">${x&&x.status==='failed'?'<button class="btn pri" type="button" data-act="hfix" data-id="'+x.id+'">Fix and resend</button>':'<button class="btn pri" type="button" data-page="queue">Open the Ops queue</button><button class="btn" type="button" data-page="release">Back to Change code</button>'}</div></section>`;
+ const aS=!x?'wait':x.status==='live'?'new':x.status==='failed'?'failed':'wait';
+ const bS=bt.res&&!bt.running?(bt.res.res==='Success'?'new':'old'):'wait';
+ const lab={new:['New feature live','p-ok'],old:['Rolled back, old version online','p-wait'],failed:['Deploy failed, old version online','p-bad'],wait:['Deploying, old version online','p-run']};
+ const frame=(name,url,state,t,steps,hand)=>`<section class="panel"><h2>${name} <span class="pill ${lab[state][1]}">${lab[state][0]}</span></h2><div class="browser"><div class="bar2">${url}</div>${site(r.sc,state==='new',r.sc==='S1'&&state!=='new')}</div>${mini([['Lead time',t],['Manual steps',steps],['Handoffs',hand]])}</section>`;
+ const aT=x&&(x.status==='live'||x.status==='failed')?(x.wait+x.total)+' s':'...';
+ const bT=bt.res&&!bt.running?bt.res.lead+' s':'...';
+ return `<div class="note" style="background:var(--accent-soft);color:var(--accent)">Released: <b>${FEAT[r.sc][0]}</b> · commit <b class="mono">${r.sha}</b> · ${r.msg}</div>
+ <div class="cols2">${frame('Method A: Manual','https://manual.example.com',aS,aT,x?x.done.length:0,x?x.tries:0)}${frame('Method B: DevOps','https://devops.example.com',bS,bT,1,0)}</div>
+ <section class="panel"><h2>What changed in the code</h2><pre class="code">${diffHTML(BASE,(r.codeSent||r.code).split('\n'))}</pre><p class="hint" style="margin:10px 0 0">The highlighted box on a website is the new feature. If it is missing, that method has not put the new version online.</p></section>`},
+overview(){
+ const a=agg('A'),b=agg('B'),red=Math.round((1-b.dep/a.dep)*100);
+ return `<div class="kpis">${kpi('Runs recorded',RUNS.length,'of 100 planned')}${kpi('Mean time A',Math.round(a.dep)+' s','Method A, hands-on')}${kpi('Mean time B',Math.round(b.dep)+' s','Method B, pipeline')}${kpi('Time saved',red+'%','B compared with A')}${kpi('Handoffs per release',a.ho.toFixed(1)+' to '+b.ho.toFixed(1),'Method A to B')}</div>
+ <div class="cols"><section class="panel"><h2>Pipelines <span class="live">Live</span></h2><div id="pipes">${pipeList()}</div></section>
+ <section class="panel"><h2>Activity</h2><ul class="feed" id="feed">${FEED.map(f=>`<li><time>${f[0]}</time><span>${f[1]}</span></li>`).join('')}</ul></section></div>
+ <section class="panel"><h2>Latest runs</h2>${runsTable(RUNS.slice(-4).reverse())}</section>`},
+test(){
+ const b=S.bt,run=b.running,st=b.st;
+ const cls=i=>st&&st[i]?(st[i]==='ok'?'ok':st[i]==='run'?'run':'bad'):'';
+ const txt=(s,i)=>!st||!st[i]?'Waiting':st[i]==='ok'?s[1]+' s':st[i]==='run'?'Running':'Failed';
+ return `<div class="cols"><section class="panel"><h2>Push a test change <span class="pill p-b">Method B</span></h2>
+ <label class="hint">Kind of release</label>
+ <div class="chips">${SC.map(s=>`<button class="chip" type="button" data-act="bsc" data-sc="${s[0]}" aria-pressed="${s[0]===b.sc}">${s[0]} ${s[1]}</button>`).join('')}</div>
+ <p class="hint" style="margin:0 0 10px">${SCNOTE[b.sc]}</p>
+ <label class="hint" for="cmsg">Commit message (the tag links the run)</label>
+ <input type="text" id="cmsg" value="${b.msg}">
+ <div class="tools" style="margin-top:12px"><button class="btn pri" type="button" data-act="bpush" ${run?'disabled':''}>${run?'Pipeline running':'Push to GitLab'}</button><span class="hint">Durations are simulated here. The real pipeline fills the same fields.</span></div></section>
+ <section class="panel"><h2>Who does what</h2><ul class="guard"><li><b>Developer</b> pushes the change. This is the only manual step</li><li><b>Pipeline</b> guards, tests, builds and deploys to staging</li><li><b>Pipeline</b> deploys to production by itself, with no approval</li><li><b>Pipeline</b> checks health and rolls back if it fails</li></ul></section></div>
+ <section class="panel"><h2>Pipeline ${run?'<span class="live">Running</span>':''}</h2>
+ <div class="stepper" style="grid-template-columns:repeat(auto-fit,minmax(110px,1fr))">${BSTEPS.map((s,i)=>`<div class="${cls(i)}"><b>${i+1}. ${s[0]}</b>${txt(s,i)}</div>`).join('')}</div>
+ ${b.rb&&run?`<div class="note" style="margin-top:12px;background:var(--bad-soft);color:var(--bad)">Health check failed. Rolling back to the last good version.</div>`:''}
+ ${b.res?resultCard(b.res):'<p class="hint" style="margin:12px 0 0">Choose a release type and push. Each step lights up as it runs.</p>'}</section>`},
+handoff(){
+ const h=S.ho;
+ return `${waitBanner()}<div class="cols"><section class="panel"><h2>Handoff request <span class="pill p-a">Method A</span></h2>
+ <label class="hint" for="hsc">Scenario</label><select id="hsc">${SC.map(s=>`<option value="${s[0]}" ${s[0]===h.sc?'selected':''}>${s[0]} ${s[1]}</option>`).join('')}</select>
+ <label class="hint blk" for="hver">Version</label><input type="text" id="hver" value="${h.ver}">
+ <label class="hint blk" for="hnote">What changed</label><textarea id="hnote" style="min-height:70px">${h.note}</textarea>
+ <div class="cols" style="margin-top:10px"><div><label class="hint" for="hset">New settings</label><input type="text" id="hset" value="${h.set}"></div><div><label class="hint" for="hdb">Database steps</label><select id="hdb">${['none','run migration'].map(o=>`<option ${o===h.db?'selected':''}>${o}</option>`).join('')}</select></div></div>
+ <div class="tools" style="margin-top:12px"><button class="btn pri" type="button" data-act="hsend" ${openH()?'disabled':''}>${openH()?'Waiting for Ops':'Send to Operations'}</button><span class="hint">The handoff wait timer starts when you send.</span></div></section>
+ <section class="panel"><h2>Requests sent</h2>${S.list.length?S.list.slice().reverse().map(handoffRow).join(''):'<p class="hint" style="margin:0">No request yet. Send one, then open the Ops queue to continue it.</p>'}</section></div>`},
+myruns(){return `<section class="panel"><h2>Runs</h2>${runsTable(RUNS.slice().reverse())}</section>`},
+queue(){
+ const L=S.list.filter(x=>x.status==='waiting'||x.status==='deploying');
+ const cur=S.list.find(x=>x.id===S.sel&&(x.status==='waiting'||x.status==='deploying'))||L[0];
+ return `<div class="split"><section class="panel"><h2>Queue</h2><div id="pl">${L.length?L.map(x=>`<button type="button" class="pitem" data-act="qpick" data-id="${x.id}" aria-pressed="${cur&&x.id===cur.id}"><span class="mono">#${x.id}</span><span>${x.sc} ${x.ver}</span><span class="pill ${pill(x.status)}">${x.status}</span></button>`).join(''):'<p class="hint" style="margin:0">Nothing waiting. Send a handoff request from Change code or the Handoff form.</p>'}</div></section>
+ <div style="min-width:0">${cur?deployPanel(cur):'<section class="panel"><h2>Deployment checklist</h2><p class="hint" style="margin:0">Select a request from the queue.</p></section>'}</div></div>`},
+runs(){
+ const rows=RUNS.filter(r=>(filter==='All'||r.sc===filter)&&(mfilter==='All'||r.m===mfilter)).slice().reverse();
+ return `<div class="note">Example data. Real runs appear here after you import manual-runs.csv and the pipelines finish.</div>
+ <section class="panel"><h2>Runs <span class="tools"><label for="flt" class="hint">Scenario</label><select id="flt">${['All','S1','S2','S3','S4','S5'].map(o=>`<option ${o===filter?'selected':''}>${o}</option>`).join('')}</select><label for="mflt" class="hint">Method</label><select id="mflt">${['All','A','B'].map(o=>`<option ${o===mfilter?'selected':''}>${o}</option>`).join('')}</select><button class="btn sm" type="button" data-act="imp">Import manual-runs.csv</button><button class="btn sm" type="button" data-act="exp">Export CSV</button></span></h2>${runsTable(rows)}</section>`},
+compare(){
+ const D=[['S1',340,412,498,118,138,162],['S2',180,226,290,82,96,118],['S3',460,540,598,58,71,90],['S4',300,388,470,105,124,150],['S5',210,264,330,88,103,126]];
+ const x=v=>60+v*0.7333,gh=64,H=D.length*gh+30;let svg='';
+ [0,100,200,300,400,500,600].forEach(t=>{svg+=`<line class="g-line" x1="${x(t)}" x2="${x(t)}" y1="6" y2="${D.length*gh}"/><text class="g-lbl" x="${x(t)}" y="${D.length*gh+18}" text-anchor="middle">${t}</text>`});
+ D.forEach((d,i)=>{const y=i*gh+18;svg+=`<text class="g-row" x="4" y="${y+22}">${d[0]}</text>`;
+  [[d[1],d[2],d[3],'a',y],[d[4],d[5],d[6],'b',y+24]].forEach(([a,m,b,c,yy],k)=>{svg+=`<line class="rl ln-${c}" style="animation-delay:${i*.1+k*.05}s" x1="${x(a)}" x2="${x(b)}" y1="${yy}" y2="${yy}" stroke-width="6" stroke-linecap="round" opacity=".4"/><circle class="pt dot-${c}" style="animation-delay:${i*.1+.5}s" cx="${x(m)}" cy="${yy}" r="6"/>`})});
+ const gauge=(v,c,l)=>`<div style="text-align:center"><svg class="gauge" viewBox="0 0 140 84" width="150" role="img" aria-label="${l} Apdex ${v}"><path class="gb" d="M10 74 A60 60 0 0 1 130 74" fill="none" stroke-width="12" stroke-linecap="round"/><path class="fg gf-${c}" d="M10 74 A60 60 0 0 1 130 74" fill="none" stroke-width="12" stroke-linecap="round" stroke-dashoffset="${(188.5*(1-v)).toFixed(1)}"/><text class="gt" x="70" y="70" text-anchor="middle">${v.toFixed(2)}</text></svg><div class="hint">${l}</div></div>`;
+ return `<div class="note">Example numbers for layout only. Real values come from the analysis after the 100 runs.</div>
+ <section class="panel"><h2>Deployment time by scenario (seconds)</h2><div class="legend"><span><i style="background:var(--ma)"></i>Method A manual</span><span><i style="background:var(--mb)"></i>Method B DevOps</span></div>
+ <div class="tbl"><svg viewBox="0 0 540 ${H}" width="100%" style="min-width:440px" role="img" aria-label="Range and mean of deployment time per scenario">${svg}</svg></div><p class="hint" style="margin:6px 0 0">Each line runs from the fastest to the slowest run. The dot is the mean.</p></section>
+ <div class="cols"><section class="panel"><h2>Failed deployments (of 50 runs)</h2><div class="bars"><div class="bar"><span>Method A</span><div class="track"><div class="a" style="width:66%">11 (22%)</div></div></div><div class="bar"><span>Method B</span><div class="track"><div class="b" style="width:18%">3 (6%)</div></div></div></div></section>
+ <section class="panel"><h2>Apdex (T = 1 s)</h2><div class="tools" style="justify-content:space-around">${gauge(.82,'a','Method A')}${gauge(.94,'b','Method B')}</div></section></div>
+ <section class="panel"><h2>DORA metrics</h2><div class="dora"><div><span class="hint">Deployment frequency per week</span><b>6 to 14</b></div><div><span class="hint">Lead time</span><b>4.1 to 1.7 min</b></div><div><span class="hint">Change failure rate</span><b>22% to 6%</b></div><div><span class="hint">Time to recover</span><b>9.0 to 1.2 min</b></div></div><p class="hint" style="margin:8px 0 0">Left value is Method A, right value is Method B.</p></section>`},
+wait(){
+ const W=[['S1',130,412,138],['S2',85,226,96],['S3',160,540,71],['S4',110,388,124],['S5',95,264,103]];
+ const w=v=>(v/700*100).toFixed(1)+'%';
+ const a=agg('A'),b=agg('B');
+ return `<div class="kpis">${kpi('Mean handoff wait',Math.round(a.wait)+' s','Method A only')}${kpi('Handoffs per release',a.ho.toFixed(1)+' to '+b.ho.toFixed(1),'Method A to B')}${kpi('Manual steps',Math.round(a.steps)+' to '+Math.round(b.steps),'Method A to B')}${kpi('Mean lead time',Math.round(a.lead)+' to '+Math.round(b.lead)+' s','Method A to B')}</div>
+ <section class="panel"><h2>Lead time split (seconds)</h2><div class="legend" style="flex-wrap:wrap"><span><i class="k-wait"></i>Handoff wait</span><span><i class="k-hand"></i>Hands-on deploy (A)</span><span><i class="k-pipe"></i>Pipeline (B)</span></div>
+ <div class="bars" style="margin-top:12px">${W.map(r=>`<div class="bar"><span>${r[0]} A<br><b class="mono">${r[1]+r[2]} s</b></span><div class="stk"><i class="k-wait" style="width:${w(r[1])}"></i><i class="k-hand" style="width:${w(r[2])}"></i></div></div><div class="bar"><span>${r[0]} B<br><b class="mono">${r[3]} s</b></span><div class="stk"><i class="k-pipe" style="width:${w(r[3])}"></i></div></div>`).join('')}</div>
+ <p class="hint" style="margin:10px 0 0">Example numbers. In Method A a large part of the lead time is waiting for the other team, not typing commands.</p></section>`},
+stats(){
+ const hy=[['H1','Deployment time','Wilcoxon signed-rank','W = 0.91 (not normal)','p < 0.001','r = 0.84','Supported','p-ok'],['H2','Failure rate','Fisher exact','counts','p = 0.09','odds ratio 4.1','Not supported','p-wait'],['H3','Recovery time','Wilcoxon signed-rank','W = 0.88 (not normal)','p = 0.002','r = 0.77','Supported','p-ok'],['H4','Manual steps','Paired t-test','W = 0.97 (normal)','p < 0.001','d = 2.9','Supported','p-ok']];
+ const su=[['Lead time','Wilcoxon signed-rank','p < 0.001','r = 0.80'],['Handoff wait (A only)','Descriptive','mean 104 s','no test']];
+ return `<div class="note">Example numbers for layout only. A result that is not significant is reported as it is.</div>
+ <section class="panel"><h2>Hypothesis tests</h2><div class="tbl"><table><thead><tr><th>Hypothesis</th><th>Measure</th><th>Test</th><th>Shapiro-Wilk</th><th>Result</th><th>Effect size</th><th>Decision</th></tr></thead><tbody>${hy.map(h=>`<tr><td class="mono">${h[0]}</td><td>${h[1]}</td><td>${h[2]}</td><td>${h[3]}</td><td class="mono">${h[4]}</td><td class="mono">${h[5]}</td><td><span class="pill ${h[7]}">${h[6]}</span></td></tr>`).join('')}</tbody></table></div></section>
+ <section class="panel"><h2>Supporting measures</h2><div class="tbl"><table><thead><tr><th>Measure</th><th>Test</th><th>Result</th><th>Effect size</th></tr></thead><tbody>${su.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td class="mono">${r[2]}</td><td class="mono">${r[3]}</td></tr>`).join('')}</tbody></table></div><p class="hint" style="margin:8px 0 0">Significant when p is below 0.05. Each scenario has 10 runs per method.</p></section>`},
+pipeline(){
+ const p=PIPES.find(x=>x.id===S.sel2)||PIPES[1];
+ const names=['Guard','Test','Build','Deploy staging','Deploy production'],durs=['6s','21s','48s','24s','12s'];
+ const gate=true;
+ return `<div class="split"><section class="panel"><h2>Pipelines</h2><div id="pl">${PIPES.map(q=>`<button type="button" class="pitem" data-act="pick" data-id="${q.id}" aria-pressed="${q.id===p.id}"><span class="mono">#${q.id}</span><span>${q.who}</span><span class="pill ${pill(q.s)}">${q.s}</span></button>`).join('')}</div></section>
+ <div style="display:flex;flex-direction:column;gap:16px;min-width:0"><section class="panel"><h2>Pipeline #${p.id} <span class="pill ${pill(p.s)}">${p.s}</span></h2>
+ <p class="hint" style="margin:0 0 12px"><span class="mono">dev-${p.who.slice(-1)}</span> · commit <span class="mono">a91f3c${p.id%10}</span> · ${p.msg}</p>
+ <div class="graph">${names.map((n,i)=>{const s=p.st[i]||'';const c=s||(i===4?'gate':'');return `<div class="gn ${c}" style="--i:${i}"><b>${n}</b><span class="hint">${s==='ok'?durs[i]:s==='run'?'running':s==='bad'?'failed':'waiting'}</span></div>`}).join('')}</div>
+ ${gate?`<div class="tools" style="margin-top:14px"><button class="btn danger" type="button" data-act="rollback">Roll back</button><span class="hint">Production deploys automatically. Roll back only in an emergency.</span></div>`:''}</section>
+ <section class="panel"><h2>Job log <button class="btn sm" type="button" data-act="replay">Replay</button></h2><div class="term" id="term"></div></section></div></div>`},
+code(){
+ const names=Object.keys(CODE),f=S.file;
+ return `<div class="split"><section class="panel"><h2>Files</h2><div class="ftree">${names.map(n=>`<button type="button" class="pitem" data-act="file" data-f="${n}" aria-pressed="${n===f}"><span class="mono">${n}</span></button>`).join('')}</div><p class="hint" style="margin:10px 0 0">Secrets are never stored in these files.</p></section>
+ <section class="panel" style="min-width:0"><h2><span class="mono">${f}</span><span class="tools"><button class="btn sm" type="button" data-act="typeit">Replay typing</button><button class="btn sm" type="button" data-act="copy">Copy</button></span></h2><pre class="code" id="codeview" tabindex="0"></pre></section></div>`},
+settings(){
+ const U=[['researcher','Nan Neth','Researcher'],['dev1','Dev-1','Developer'],['dev2','Dev-2','Developer'],['ops1','Ops-1','Operations'],['ops2','Ops-2','Operations']];
+ const sw=(k,l,d)=>`<div class="set"><div><b>${l}</b><div class="hint">${d}</div></div><button class="sw" type="button" role="switch" aria-checked="${S.set[k]}" aria-label="${l}" data-act="toggle" data-k="${k}"></button></div>`;
+ return `<section class="panel"><h2>Participants</h2><div class="tbl"><table><thead><tr><th>Participant</th><th>Name in the data</th><th>Method A</th><th>Method B</th></tr></thead><tbody><tr><td>Researcher</td><td>Dev-1 / Ops-1</td><td>Dev team in some scenarios, Ops team in others</td><td>One shared team</td></tr><tr><td>Friend</td><td>Dev-2 / Ops-2</td><td>Ops team in some scenarios, Dev team in others</td><td>One shared team</td></tr></tbody></table></div><p class="hint" style="margin:8px 0 0">Roles swap between scenarios so that the result does not depend on one person. Only these names are stored.</p></section>
+ <section class="panel"><h2>Experiment rules</h2>${sw('auto','Deploy to production automatically','Every change that passes the tests goes live without a click.')}${sw('roll','Automatic rollback','Return to the last good version when the health check fails.')}${sw('mirror','Mirror to GitHub','Push every change on main to the public repository.')}</section>`},
+system(){
+ const sv=[['NUM Portal',':3000'],['Method A app (PM2)',':3001'],['Method B production',':3002'],['Method B staging',':3003'],['PostgreSQL',':5432'],['GitLab runner','num-portal-runner'],['Cloudflare Tunnel','4 connections'],['GitHub mirror','last push 10:40']];
+ return `<section class="panel"><h2>Services</h2><div class="health">${sv.map(s=>`<div><span>${s[0]}<small>${s[1]}</small></span><span class="pill p-ok">OK</span></div>`).join('')}</div></section>
+ <section class="panel"><h2>Webhook</h2><p style="margin:0">Last GitLab event 10:42. The secret token is checked on every call.</p></section>`},
+about(){
+ return `<section class="panel"><h2>What is compared</h2><div class="cols"><div><span class="pill p-a">Method A</span><p>Manual deployment. A Dev team writes the code and hands it to an Operations team. Operations connects to the server and repeats a written procedure by hand.</p></div><div><span class="pill p-b">Method B</span><p>GitLab CI/CD and Docker. One shared team. The pipeline does the repeated work. A change that passes the checks goes live by itself, and the pipeline rolls back if the health check fails.</p></div></div></section>
+ <section class="panel"><h2>What is recorded</h2><p style="margin:0">Deployment time, lead time, handoff wait, number of manual steps, failures and recovery time. Only system data is stored. The source code is public on GitHub.</p></section>`},
+login(){
+ return `<section class="panel login"><h2 style="font-size:18px">Sign in to NUM Portal</h2><p class="hint" style="margin:0">Use the account the researcher gave you, for example dev1.</p>
+ <label class="hint" for="lu">Username</label><input type="text" id="lu" value="dev1" autocomplete="off">
+ <label class="hint" for="lp">Password</label><input type="password" id="lp" placeholder="Password" autocomplete="off">
+ <button class="btn pri" type="button" data-act="login">Sign in</button><p class="hint" style="margin:0">Viewers can read the overview without signing in.</p></section>`}
+};
+
+/* ---------- logs ---------- */
+function makeLog(p){
+ const n=p.who.slice(-1),sha='a91f3c'+p.id%10;
+ const L=[['00:00','Running with gitlab-runner (shell), tag num-portal-runner'],['00:01','Fetching changes for dev-'+n],['00:03','$ npm ci'],['00:09','$ npm run lint'],['00:12','$ npm test'],['00:21','Test Files  2 passed (17 tests)']];
+ if(p.s==='failed'){L.push(['00:26','ERROR menu.test.ts: 2 tests failed'],['00:27','Job failed: exit code 1']);return L}
+ L.push(['00:28','$ docker build -t sme-app:'+sha+' .']);
+ if(p.s==='running')return L;
+ L.push(['01:16','Successfully tagged sme-app:'+sha],['01:17','$ bash ./scripts/deploy.sh staging'],['01:30','health check ... OK (3003)'],['01:40','$ bash ./scripts/deploy.sh production'],['01:52','health check ... OK (3002)'],['01:52','Job succeeded']);
+ return L;
+}
+function streamLog(el,lines,gap,append){
+ if(!el)return;
+ if(!append)el.innerHTML='';
+ lines.forEach((l,i)=>later(()=>{
+  const d=document.createElement('div');
+  d.className='tl'+(/ERROR|failed/.test(l[1])?' er':/OK|succeeded|Successfully/.test(l[1])?' g':'');
+  d.innerHTML=`<time>${l[0]}</time><span>${esc(l[1])}</span>`;
+  const old=el.querySelector('.cur');if(old)old.classList.remove('cur');
+  d.classList.add('cur');el.appendChild(d);el.scrollTop=el.scrollHeight;
+ },i*gap));
+}
+function tickLive(){
+ const feed=$('#feed'),pipes=$('#pipes');if(!feed||!pipes)return;
+ const now=new Date(),hm=pad(now.getHours())+':'+pad(now.getMinutes());
+ const say=t=>{FEED.unshift([hm,t]);feed.insertAdjacentHTML('afterbegin',`<li class="flash"><time>${hm}</time><span>${t}</span></li>`);if(feed.children.length>7)feed.lastElementChild.remove()};
+ const r=PIPES.find(p=>p.s==='running');
+ const names=['guard','test','build','deploy'];
+ if(r){const i=r.st.indexOf('run');r.st[i]='ok';
+  if(i<3){r.st[i+1]='run';say('Pipeline #'+r.id+' passed '+names[i])}
+  else{r.st=['ok','ok','ok','ok','ok'];r.s='success';r.t='1:47';say('Pipeline #'+r.id+' deployed to production')}
+ }else{const id=PIPES[0].id+1,who='Dev-'+(1+id%2);PIPES.unshift({id,who,msg:['Add a skills list','Change the footer text','Make the title larger','Add an opening hours section'][id%4],st:['run','','','',''],s:'running',t:'0:05'});PIPES.pop();say(who+' pushed a change')}
+ pipes.innerHTML=pipeList();
+}
+
+/* ---------- Method B simulation (keeps running when you change page) ---------- */
+function refresh(){if(['test','myruns','overview','sbs','result','release'].includes(page))render(true)}
+function btStart(){
+ const b=S.bt;if(b.running)return;
+ Object.assign(b,{running:true,gate:false,rb:false,res:null,wait:0,st:BSTEPS.map(()=>''),dur:BSTEPS.map(()=>0)});
+ btNext(0);
+}
+function btNext(i){
+ const b=S.bt;
+ if(i>=BSTEPS.length){btFinish('Success');return}
+ b.st[i]='run';
+  refresh();
+ sim(()=>{
+  if(b.sc==='S3'&&i===6){b.st[i]='bad';b.dur[i]=BSTEPS[i][1];b.rb=true;refresh();sim(()=>btFinish('Rolled back'),1300);return}
+  b.st[i]='ok';b.dur[i]=BSTEPS[i][1];btNext(i+1);
+ },i===0?500:1000);
+}
+function btFinish(res){
+ const b=S.bt;b.running=false;b.gate=false;
+ const pipe=b.dur.reduce((x,y)=>x+y,0)+(b.rb?6:0);
+ b.res={res,pipe,lead:pipe,rec:b.rb?6:0};
+ const n=RUNS.length+1;
+ RUNS.push({id:b.sc+'-'+pad(n),sc:b.sc,m:'B',who:'Dev-1/Ops-1',dep:pipe,wait:0,steps:1,ho:0,res,src:'test run'});
+ b.msg=b.msg.replace(/\[S\d-\d+\]/,'['+b.sc+'-'+pad(RUNS.length+1)+']');
+ toast(res==='Success'?'Deployed. Run saved':'Rolled back. Run saved');
+ refresh();
+}
+
+/* ---------- actions ---------- */
+function newHandoff(base,tries){
+ S.hid++;const x={id:S.hid,sc:base.sc,ver:base.ver,note:base.note,set:base.set,db:base.db,status:'waiting',sentAt:Date.now(),startAt:0,tries,done:[],times:{},total:0,wait:0};
+ S.list.push(x);S.sel=x.id;return x;
+}
+function act(a,b){
+ const id=+b.dataset.id,x=S.list.find(h=>h.id===id);
+ if(a==='bsc'){if(S.bt.running)return;S.bt.sc=b.dataset.sc;S.bt.msg=S.bt.msg.replace(/\[S\d-\d+\]/,'['+S.bt.sc+'-'+pad(RUNS.length+1)+']');render(true)}
+ else if(a==='bpush'){btStart()}
+ else if(a==='hsend'){newHandoff(S.ho,1);toast('Sent to Operations');render(true)}
+ else if(a==='hfix'){const h=newHandoff(x,x.tries+1);S.rel.aId=h.id;toast('Fixed version sent again');render(true)}
+ else if(a==='qpick'){S.sel=id;render(true)}
+ else if(a==='ostart'){x.status='deploying';x.startAt=Date.now();x.wait=Math.round((x.startAt-x.sentAt)/1000);render(true)}
+ else if(a==='ook'){x.status='live';x.total=Math.max(1,Math.round((Date.now()-x.startAt)/1000));
+  RUNS.push({id:x.sc+'-'+pad(RUNS.length+1),sc:x.sc,m:'A',who:'Dev-1/Ops-1',dep:x.total,wait:x.wait,steps:x.done.length,ho:x.tries,res:'Success',src:'handoff form'});toast('Live. Run saved');render(true)}
+ else if(a==='ofail'){x.status='failed';x.total=Math.max(1,Math.round((Date.now()-x.startAt)/1000));
+  RUNS.push({id:x.sc+'-'+pad(RUNS.length+1),sc:x.sc,m:'A',who:'Dev-1/Ops-1',dep:x.total,wait:x.wait,steps:x.done.length,ho:x.tries,res:'Failed',src:'handoff form'});toast('Reported to Developer');render(true)}
+ else if(a==='rsc'){const q=S.rel;if(S.bt.running||openH())return;q.sc=b.dataset.sc;q.code=PRESET[q.sc].join('\n');q.msg=MSGS[q.sc]+' ['+q.sc+'-'+pad(RUNS.length+1)+']';render(true)}
+ else if(a==='rcommit'){const q=S.rel;if(S.bt.running||openH())return;
+  S.bt.sc=q.sc;S.bt.msg=q.msg;
+  S.ho.sc=q.sc;S.ho.ver='v1.'+(RUNS.length%9+1)+'.0';S.ho.note=q.msg;S.ho.set=q.sc==='S5'?'DELIVERY_FEE':'none';S.ho.db='none';
+  q.sha=Math.random().toString(16).slice(2,9);q.committed=true;q.t=Date.now();q.codeSent=q.code;
+  const h=newHandoff(S.ho,1);q.aId=h.id;btStart();toast('Committed '+q.sha+'. Deploying to both');page='release';render()}
+ else if(a==='opsauto'){opsAuto(id)}
+ else if(a==='pick'){S.sel2=id;render()}
+ else if(a==='file'){S.file=b.dataset.f;render(true)}
+ else if(a==='typeit'){clearTimers();showCode($('#codeview'),CODE[S.file],true)}
+ else if(a==='copy'){const t=CODE[S.file].join('\n');try{navigator.clipboard.writeText(t).then(()=>toast('Copied'),()=>toast('Select the code and copy it'))}catch(e){toast('Select the code and copy it')}}
+ else if(a==='replay'){clearTimers();const p=PIPES.find(q=>q.id===S.sel2)||PIPES[1];streamLog($('#term'),makeLog(p),380)}
+ else if(a==='rollback'){streamLog($('#term'),[['02:20','$ bash ./scripts/rollback.sh production'],['02:24','previous image started'],['02:26','health check ... OK (3002)'],['02:26','Rollback finished in 6 s']],500,true);toast('Rolling back to the previous version')}
+ else if(a==='toggle'){S.set[b.dataset.k]=!S.set[b.dataset.k];b.setAttribute('aria-checked',S.set[b.dataset.k])}
+ else if(a==='save'){toast('Saved')}
+ else if(a==='imp'){toast('Choose a file in the real portal')}
+ else if(a==='exp'){toast('The real portal downloads the CSV')}
+ else if(a==='login'){b.disabled=true;b.innerHTML='<span class="spin"></span>Signing in';later(()=>{page='sbs';render()},1100)}
+}
+
+/* ---------- render ---------- */
+function badge(p){
+ if(p==='queue'){const n=S.list.filter(x=>x.status==='waiting').length;return n?`<span class="badge hot">${n}</span>`:''}
+ return '';
+}
+function render(soft){
+ clearTimers();
+ if(!PAGES.includes(page))page='sbs';
+ $('#rail').innerHTML=NAV.map(g=>`<h6>${g[0]}</h6>`+g[1].map(p=>`<button type="button" data-page="${p[0]}" ${p[0]===page?'aria-current="page"':''}><span>${p[1]}</span>${badge(p[0])}</button>`).join('')).join('');
+ const t=TITLES[page];
+ $('#view').innerHTML=`<div class="ph"><div><h1>${t[0]}</h1><p>${t[1]}</p></div>${page==='overview'?'<span class="live">Live</span>':''}</div>`+V[page]();
+ afterRender(soft);
+}
+function afterRender(soft){
+ $('#view').classList.toggle('soft',!!soft);
+ if(!soft){const v=$('#view');v.classList.remove('in');void v.offsetWidth;v.classList.add('in');
+  document.querySelectorAll('[data-count]').forEach(el=>{const to=+el.dataset.count,t0=performance.now();const f=t=>{const k=Math.min(1,(t-t0)/900);el.textContent=Math.round(to*(1-Math.pow(1-k,3)));if(k<1)requestAnimationFrame(f)};requestAnimationFrame(f)})}
+ if(page==='overview')T.i.push(setInterval(tickLive,3200));
+ if((page==='sbs'||page==='result'||page==='release')&&(S.bt.running||openH()))T.i.push(setInterval(()=>render(true),1000));
+ if(page==='pipeline'){const p=PIPES.find(q=>q.id===S.sel2)||PIPES[1];streamLog($('#term'),makeLog(p),380)}
+ if(page==='code')showCode($('#codeview'),CODE[S.file],true);
+ if(page==='handoff'){const x=openH();if(x)T.i.push(setInterval(()=>{const el=$('#wtime');if(el)el.textContent=fmt((Date.now()-(x.status==='deploying'?x.startAt:x.sentAt))/1000)},300))}
+ if(page==='queue'){const x=S.list.find(h=>h.status==='deploying');if(x)T.i.push(setInterval(()=>{const el=$('#mtime');if(el)el.textContent=fmt((Date.now()-x.startAt)/1000)},300))}
+}
+document.addEventListener('click',e=>{
+ const b=e.target.closest('button');if(!b)return;
+ if(b.dataset.page){page=b.dataset.page;render()}
+ else if(b.dataset.act){act(b.dataset.act,b)}
+ else if(b.id==='theme'){const d=document.documentElement,dark=d.dataset.theme==='dark'||(!d.dataset.theme&&matchMedia('(prefers-color-scheme: dark)').matches);d.dataset.theme=dark?'light':'dark'}
+});
+document.addEventListener('input',e=>{const t=e.target;
+ if(t.id==='cmsg')S.bt.msg=t.value;else if(t.id==='codeedit'){S.rel.code=t.value;const d=$('#rdiff');if(d)d.innerHTML=diffHTML(BASE,t.value.split('\n'))}else if(t.id==='cmsg2')S.rel.msg=t.value;else if(t.id==='hver')S.ho.ver=t.value;else if(t.id==='hnote')S.ho.note=t.value;else if(t.id==='hset')S.ho.set=t.value});
+document.addEventListener('change',e=>{const t=e.target;
+ if(t.id==='hsc')S.ho.sc=t.value;
+ else if(t.id==='hdb')S.ho.db=t.value;
+ else if(t.id==='flt'){filter=t.value;render()}
+ else if(t.id==='mflt'){mfilter=t.value;render()}
+ else if(t.dataset.act==='ostep'){const x=S.list.find(h=>h.id===+t.dataset.id),i=+t.dataset.i;if(!x)return;
+  if(t.checked){if(!x.done.includes(i)){x.done.push(i);x.times[i]=fmt((Date.now()-x.startAt)/1000)}}else{x.done=x.done.filter(v=>v!==i);delete x.times[i]}
+  render(true)}});
+render();
+</script>
+
+</body></html>

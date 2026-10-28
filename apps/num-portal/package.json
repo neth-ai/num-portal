@@ -1,0 +1,33 @@
+{
+  "name": "num-portal",
+  "version": "1.0.0",
+  "private": true,
+  "description": "NUM Portal \u2013 prompt-to-deploy demonstration and DevOps experiment dashboard (Next.js + PostgreSQL)",
+  "license": "MIT",
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start -p 3000",
+    "lint": "next lint",
+    "test": "vitest run",
+    "db:migrate": "node scripts/migrate.mjs",
+    "db:seed": "node scripts/seed.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.135.0",
+    "next": "14.2.35",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "pg": "8.13.1"
+  },
+  "devDependencies": {
+    "@types/node": "20.17.6",
+    "@types/react": "18.3.12",
+    "@types/react-dom": "18.3.1",
+    "eslint": "8.57.1",
+    "eslint-config-next": "14.2.35",
+    "typescript": "5.6.3",
+    "vitest": "2.1.9",
+    "@types/pg": "8.11.10"
+  }
+}

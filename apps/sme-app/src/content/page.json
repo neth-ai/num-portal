@@ -1,0 +1,7 @@
+{
+  "title": "Sokha Cafe",
+  "sections": [
+    { "type": "menu", "items": ["Coffee", "Tea", "Cake"] },
+    { "type": "hours", "text": "Open 7am to 9pm every day" }
+  ]
+}

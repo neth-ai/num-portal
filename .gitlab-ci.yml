@@ -1,0 +1,157 @@
+# Branch flow: dev/* -> staging -> main. Local Docker runner uses Docker Desktop for builds and Compose deployment.
+stages: [validate, test, build, deploy_staging, deploy_production]
+
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == "staging" || $CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS && $CI_PIPELINE_SOURCE == "push"'
+      when: never
+    - if: '$CI_COMMIT_BRANCH =~ /^dev\/.+/'
+
+variables:
+  PORTAL_IMAGE: "$CI_REGISTRY_IMAGE/num-portal"
+  SITE_IMAGE: "$CI_REGISTRY_IMAGE/sme-app"
+  TAG: "$CI_COMMIT_SHA"
+  # The four public addresses of the study server, all on one Cloudflare Tunnel.
+  PUBLIC_DOMAIN: "neth-ai.com"
+  URL_PORTAL: "https://num-portal.$PUBLIC_DOMAIN"
+  URL_DEVOPS: "https://num-portal-devops.$PUBLIC_DOMAIN"
+  URL_STAGING: "https://num-portal-staging.$PUBLIC_DOMAIN"
+
+default:
+  tags: [num-portal-local]
+  image: node:20-alpine
+  interruptible: true
+
+.checks:
+  rules:
+    - when: on_success
+
+.release:
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "staging" || $CI_COMMIT_BRANCH == "main"'
+
+.docker_build:
+  tags: [num-portal-local]
+  image: docker:27-cli
+  variables:
+    DOCKER_HOST: unix:///var/run/docker.sock
+  before_script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+
+branch_policy:
+  extends: .checks
+  stage: validate
+  script:
+    - |
+      if [ "$CI_PIPELINE_SOURCE" = "merge_request_event" ]; then
+        case "$CI_MERGE_REQUEST_SOURCE_BRANCH_NAME:$CI_MERGE_REQUEST_TARGET_BRANCH_NAME" in
+          dev/*:staging|staging:main) echo "Allowed branch promotion" ;;
+          *) echo "Use dev/* -> staging -> main"; exit 1 ;;
+        esac
+      fi
+
+.registry:
+  tags: [num-portal-local]
+  image: docker:27-cli
+  variables:
+    DOCKER_HOST: unix:///var/run/docker.sock
+  interruptible: false
+  before_script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+
+# All jobs run on the local Docker executor runner, including merge request checks.
+test_portal:
+  extends: .checks
+  stage: test
+  script:
+    - cd apps/num-portal
+    - npm ci --cache /tmp/npm-cache
+    - npm run lint
+    - npm test
+    - npm run build
+
+test_site:
+  extends: .checks
+  stage: test
+  script:
+    - cd apps/sme-app
+    - npm ci --cache /tmp/npm-cache
+    - npm run lint
+    - npm run build
+
+build_portal:
+  extends: [.docker_build, .release]
+  stage: build
+  script:
+    - docker build --build-arg APP_VERSION="$CI_COMMIT_SHORT_SHA" -t "$PORTAL_IMAGE:$TAG" apps/num-portal
+    - docker push "$PORTAL_IMAGE:$TAG"
+
+build_site:
+  extends: [.docker_build, .release]
+  stage: build
+  script:
+    - docker build -t "$SITE_IMAGE:$TAG" apps/sme-app
+    - docker push "$SITE_IMAGE:$TAG"
+
+deploy_staging:
+  extends: .registry
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "staging"'
+  stage: deploy_staging
+  resource_group: staging
+  environment:
+    name: staging
+    url: $URL_STAGING
+  script:
+    - docker pull "$SITE_IMAGE:$TAG"
+    - sh scripts/local-ci-deploy.sh deploy staging "$SITE_IMAGE:$TAG" "$CI_COMMIT_SHORT_SHA"
+
+deploy_production:
+  extends: .registry
+  stage: deploy_production
+  resource_group: production
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: manual
+      allow_failure: false
+  environment:
+    name: production
+    url: $URL_DEVOPS
+  script:
+    - docker pull "$SITE_IMAGE:$TAG"
+    - sh scripts/local-ci-deploy.sh deploy devops "$SITE_IMAGE:$TAG" "$CI_COMMIT_SHORT_SHA"
+
+# Optional portal update after the main branch build passes.
+deploy_live_portal:
+  extends: .registry
+  stage: deploy_production
+  resource_group: live
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: manual
+      allow_failure: true
+  environment:
+    name: live
+    url: $URL_PORTAL
+  script:
+    - docker pull "$PORTAL_IMAGE:$TAG"
+    - sh scripts/local-ci-deploy.sh deploy portal "$PORTAL_IMAGE:$TAG" "$CI_COMMIT_SHORT_SHA"
+
+# Scenario S3 recovery by hand. Local deployment already rolls back when the health check
+# fails; this button is for a release that is healthy but wrong.
+rollback_production:
+  extends: .registry
+  stage: deploy_production
+  needs: []
+  resource_group: production
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: manual
+      allow_failure: true
+  environment:
+    name: production
+    url: $URL_DEVOPS
+  script:
+    - sh scripts/local-ci-deploy.sh rollback devops

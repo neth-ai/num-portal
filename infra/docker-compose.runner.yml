@@ -1,0 +1,10 @@
+# Local CI runner for lint, tests, builds and local Docker Desktop deployments.
+# Credentials stay in the ignored .local-env directory.
+services:
+  runner:
+    image: gitlab/gitlab-runner:alpine@sha256:b7dead3b57cd9e5e5d6aedc6c0736c43972af9a24aa19875c2802bc8afcd3978
+    container_name: num-portal-gitlab-runner
+    restart: unless-stopped
+    volumes:
+      - ../.local-env/gitlab-runner:/etc/gitlab-runner
+      - /var/run/docker.sock:/var/run/docker.sock

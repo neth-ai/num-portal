@@ -1,0 +1,159 @@
+# Runs NUM Portal, its database and the three copies of the cafe website locally.
+#
+#   docker compose --env-file .local-env/.env up -d --build
+#       http://localhost:3000   the portal
+#       http://manual:3001      Method A, deployed by hand
+#       http://devops:3002      Method B, production
+#       http://staging:3003     Method B, staging
+#
+# The --env-file flag is needed by every compose command here, because the tunnel service
+# below reads the Cloudflare token while the file is being parsed.
+#
+# The three names need one line in /etc/hosts:
+#   127.0.0.1  manual devops staging
+# A version is put online with scripts/publish-site.sh (see docs/EXPERIMENT-GUIDE.md).
+#
+# To publish it over Cloudflare as well:
+#   docker compose --env-file .local-env/.env --profile tunnel up -d
+#
+# The Cloudflare token lives in .local-env/.env (CLOUDFLARE_TOKEN). That folder is
+# gitignored, so the token never reaches the repository. --env-file is what lets
+# Compose read the token; without it the tunnel service refuses to start.
+services:
+  db:
+    restart: unless-stopped
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: numportal
+      POSTGRES_PASSWORD: numportal
+      POSTGRES_DB: numportal
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - numportal-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U numportal -d numportal"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  portal:
+    build:
+      context: ./apps/num-portal
+      args:
+        APP_VERSION: docker
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      DATABASE_URL: postgresql://numportal:numportal@db:5432/numportal
+      # Local HTTP cannot carry a Secure cookie, so sign-in needs this flag here.
+      INSECURE_COOKIES: "1"
+      APP_VERSION: docker
+      # Two addresses for each site: the portal checks it over the compose network, and the
+      # browser opens the public one through Cloudflare Tunnel. The Result page embeds the
+      # public address, so over https it has to be the public one as well.
+      METHOD_A_URL: http://manual:3000
+      METHOD_B_URL: http://devops:3000
+      STAGING_URL: http://staging:3000
+      METHOD_A_PUBLIC_URL: https://num-portal-manual.neth-ai.com
+      METHOD_B_PUBLIC_URL: https://num-portal-devops.neth-ai.com
+      STAGING_PUBLIC_URL: https://num-portal-staging.neth-ai.com
+      # "Commit and deploy to both" edits the cafe site and pushes it, so the
+      # repository is mounted here.
+      REPO_ROOT: /repo
+    volumes:
+      - .:/repo
+    env_file:
+      - path: ./apps/num-portal/.env.docker
+        required: false
+    depends_on:
+      db:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # The cafe website: one page, three deployed copies.
+  #
+  # All three run the same image from apps/sme-app. What makes them different is the content
+  # file each one serves: .local-env/sites/<name>/page.json. Method A can therefore be on the
+  # new version while Method B is still on the old one, which is what the experiment compares.
+  # Until the first deployment a copy has no file and honestly reports "nothing is online".
+  # ---------------------------------------------------------------------------
+  manual:
+    build:
+      context: ./apps/sme-app
+    ports:
+      - "127.0.0.1:3001:3000"
+    environment:
+      SITE_CONTENT_PATH: /app/content/page.json
+      SITE_ENV: Method A - manual deployment
+      SITE_EXPERIENCE: student-hub
+      APP_VERSION: manual
+      GITLAB_TOKEN: ${GITLAB_TOKEN:-${GITLAB_READ_TOKEN:-}}
+      DATABASE_URL: postgresql://numportal:numportal@db:5432/numportal
+    volumes:
+      # Read-only: the container serves the file, publish-site.sh is what replaces it.
+      - ./.local-env/sites/manual:/app/content:ro
+    restart: unless-stopped
+
+  devops:
+    build:
+      context: ./apps/sme-app
+    ports:
+      - "127.0.0.1:3002:3000"
+    environment:
+      SITE_CONTENT_PATH: /app/content/page.json
+      SITE_ENV: Method B - DevOps production
+      SITE_EXPERIENCE: student-hub
+      APP_VERSION: devops
+      GITLAB_TOKEN: ${GITLAB_TOKEN:-${GITLAB_READ_TOKEN:-}}
+      DATABASE_URL: postgresql://numportal:numportal@db:5432/numportal
+    volumes:
+      - ./.local-env/sites/devops:/app/content:ro
+    restart: unless-stopped
+
+  # Method B deploys here first; production follows only after this copy is healthy.
+  staging:
+    build:
+      context: ./apps/sme-app
+    ports:
+      - "127.0.0.1:3003:3000"
+    environment:
+      SITE_CONTENT_PATH: /app/content/page.json
+      SITE_ENV: Method B - DevOps staging
+      SITE_EXPERIENCE: student-hub
+      APP_VERSION: staging
+      GITLAB_TOKEN: ${GITLAB_TOKEN:-${GITLAB_READ_TOKEN:-}}
+      DATABASE_URL: postgresql://numportal:numportal@db:5432/numportal
+    volumes:
+      - ./.local-env/sites/staging:/app/content:ro
+    restart: unless-stopped
+
+  # Publishes the portal through Cloudflare Tunnel. Started only with --profile tunnel,
+  # so the normal local run stays private.
+  #
+  # The token is a remotely managed tunnel, which means the hostname rules live in the
+  # Cloudflare dashboard, not in infra/cloudflared-config.yml. Point the hostname at
+  # http://portal:3000 (the service name inside this compose network).
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    profiles: [tunnel]
+    env_file:
+      - path: ./.local-env/.env
+        required: true
+    environment:
+      # cloudflared reads the token from TUNNEL_TOKEN; the file calls it CLOUDFLARE_TOKEN.
+      # The image is distroless, so the rename happens here rather than in a shell.
+      TUNNEL_TOKEN: ${CLOUDFLARE_TOKEN:?set CLOUDFLARE_TOKEN in .local-env/.env and start with --env-file .local-env/.env}
+    command: ["tunnel", "--no-autoupdate", "--metrics", "0.0.0.0:2000", "run"]
+    ports:
+      # cloudflared's own metrics, used to check that the tunnel is connected.
+      - "127.0.0.1:2000:2000"
+    depends_on:
+      - portal
+    restart: unless-stopped
+
+volumes:
+  numportal-db:

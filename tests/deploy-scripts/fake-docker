@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Fake "docker" used only to test deploy.sh / rollback.sh without Docker.
+# An image whose name contains "broken" starts a server whose health check fails.
+STATE=${FAKE_DOCKER_STATE:-/tmp/fake-docker}; mkdir -p "$STATE"
+cmd="$1"; shift
+case "$cmd" in
+  pull|login) exit 0 ;;
+  rm) for a in "$@"; do [ -f "$STATE/$a.pid" ] && kill "$(cat "$STATE/$a.pid")" 2>/dev/null; rm -f "$STATE/$a.pid"; done; exit 0 ;;
+  run)
+    name=""; port=""; detach=0; image=""
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        -d) detach=1 ;;
+        --rm|--network|--restart|--env-file|--memory|--cpus|--entrypoint) [ "$1" = --rm ] || shift ;;
+        --name) shift; name="$1" ;;
+        -p) shift; port="${1#127.0.0.1:}"; port="${port%%:*}" ;;
+        *) image="$1"; shift; break ;;
+      esac; shift
+    done
+    if [ "$detach" -eq 0 ]; then exit 1; fi   # "test -f migrate.mjs" -> no migrations
+    code=200; case "$image" in *broken*) code=503 ;; esac
+    node -e "require('http').createServer((q,r)=>{r.writeHead(q.url==='/api/health'?$code:200);r.end('$image')}).listen($port,'127.0.0.1')" &
+    echo $! > "$STATE/$name.pid"; sleep 0.3; echo fakeid ;;
+  *) exit 0 ;;
+esac

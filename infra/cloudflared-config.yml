@@ -1,0 +1,39 @@
+# /etc/cloudflared/config.yml – one tunnel serves the portal, both experiment methods and tester previews
+# Replace example.com with your own domain. Use ONE level of subdomain (tester-1.example.com):
+# the free Cloudflare certificate covers *.example.com but not *.sub.example.com.
+# <TUNNEL-ID> is printed by `cloudflared tunnel create numportal`. Full guide: docs/SETUP-CLOUDFLARE-TUNNEL.md
+tunnel: numportal
+credentials-file: /etc/cloudflared/<TUNNEL-ID>.json
+
+ingress:
+  - hostname: portal.example.com             # NUM Portal (dashboard + prompt workspace + GitLab webhook)
+    service: http://127.0.0.1:3000
+  - hostname: manual.example.com   # Method A – manual deployment (PM2)
+    service: http://127.0.0.1:3001
+  - hostname: devops.example.com   # Method B – DevOps production container
+    service: http://127.0.0.1:3002
+  - hostname: staging.example.com  # Method B – staging container
+    service: http://127.0.0.1:3003
+  - hostname: tester-1.example.com
+    service: http://127.0.0.1:4001
+  - hostname: tester-2.example.com
+    service: http://127.0.0.1:4002
+  - hostname: tester-3.example.com
+    service: http://127.0.0.1:4003
+  - hostname: tester-4.example.com
+    service: http://127.0.0.1:4004
+  - hostname: tester-5.example.com
+    service: http://127.0.0.1:4005
+  # Teachers 6–10 can create their own account at /register. Keep these in step with
+  # MAX_TESTERS in the portal settings: a teacher without a line here has no public page.
+  - hostname: tester-6.example.com
+    service: http://127.0.0.1:4006
+  - hostname: tester-7.example.com
+    service: http://127.0.0.1:4007
+  - hostname: tester-8.example.com
+    service: http://127.0.0.1:4008
+  - hostname: tester-9.example.com
+    service: http://127.0.0.1:4009
+  - hostname: tester-10.example.com
+    service: http://127.0.0.1:4010
+  - service: http_status:404
